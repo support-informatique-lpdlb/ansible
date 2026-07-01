@@ -2,11 +2,12 @@
 # ===========================================================================
 # Secrets du site ROU.
 #
-# 1. Copier :   cp vault.example.yml vault.yml
+# 1. Copier :   cp vault.yml.example vault.yml
 # 2. Renseigner les vraies valeurs
-# 3. Chiffrer :  ansible-vault encrypt inventories/group_vars/ROU/vault.yml
+# 3. Chiffrer :  ansible-vault encrypt vault.yml
 #
-# Seul vault.yml (chiffré) est utilisé par Ansible.
+# Seul vault.yml (chiffré) est chargé par Ansible ; ce fichier .example ne l'est
+# pas (extension non reconnue), il sert uniquement de modèle.
 # ===========================================================================
 
 # --- Compte utilisé par Ansible pour se connecter (SSH) ---

@@ -1,139 +1,97 @@
 # ansible-aos8
 
-Onboarding des OmniSwitch Alcatel-Lucent Enterprise (AOS 8) via la collection
-`ale.aos8` — connexion `network_cli` (SSH), secrets Ansible Vault, inventaire
-multi-sites.
+Onboarding des switchs Alcatel-Lucent Enterprise OmniSwitch (AOS 8), collection
+`ale.aos8`, connexion SSH (`network_cli`), secrets Ansible Vault, inventaire par site.
 
-Le playbook `onboard.yml` applique la configuration de base d'un switch de façon
-**idempotente** (`aos8_config` compare au running-config et n'envoie que ce qui
-manque) : nom système, services IP, AAA, plan de VLANs, agrégats LACP et comptes
-locaux — puis sauvegarde et certifie si des changements ont eu lieu. Chaque
-**site** porte ses propres variables (connexion, secrets, VLANs).
+Le playbook `onboard.yml` applique la config de base d'un switch de façon
+**idempotente** (`aos8_config` ne pousse que les lignes manquantes) : nom système,
+services IP, AAA, VLANs, agrégats LACP, comptes locaux — puis sauvegarde/certifie
+si quelque chose a changé.
 
-## Prérequis
-
-Nœud de contrôle Linux (Ubuntu / WSL) :
+## Installation (nœud de contrôle Linux)
 
 ```bash
-python3 -m pip install --user "ansible-core>=2.14" ansible-pylibssh
+sudo apt install -y pipx && pipx ensurepath
+pipx install "ansible-core>=2.14"
+pipx inject ansible-core ansible-pylibssh
 ansible-galaxy collection install -r requirements.yml -p collections
 ```
+
+> `ale.aos8` n'est pas sur la Galaxy publique : `requirements.yml` l'installe
+> depuis l'archive GitHub (v1.0.2, requise pour `aos8_config`).
 
 ## Structure
 
 ```
-ansible.cfg                        # inventory = inventories/, collections_path
-requirements.yml                   # ale.aos8, ansible.netcommon, ansible.utils
-inventories/                       # inventaire = ce répertoire (un dossier par site)
-  group_vars/
-    ROU/main.yml                   # site ROU : connexion + management + plan de VLANs
-    ROU/vault.yml                  # site ROU : secrets chiffrés (voir vault.example.yml)
-  host_vars/
-    ROU_SW_ACCESS_02.yml           # par switch : agrégats LACP (+ mgmt_ip pour plus tard)
-  ROU/hosts.yml                    # switchs du site ROU (un seul groupe)
-playbooks/onboard.yml              # onboarding d'un switch (aos8_config, idempotent)
-templates/onboard.cfg.j2           # config AOS 8 rendue depuis les variables
+inventories/
+  ROU/hosts.yml                  # switchs du site ROU
+  group_vars/ROU/main.yml        # connexion + management + plan de VLANs
+  group_vars/ROU/vault.yml       # secrets chiffrés (modèle : vault.yml.example)
+  host_vars/<switch>.yml         # agrégats LACP du switch
+playbooks/onboard.yml            # onboarding (aos8_config, idempotent)
+templates/onboard.cfg.j2         # config AOS 8 rendue depuis les variables
 ```
 
-## Inventaire (multi-sites)
-
-L'inventaire est le répertoire `inventories/` ; chaque site a son dossier
-(`inventories/<SITE>/hosts.yml`) et **porte toutes ses variables** dans
-`group_vars/<SITE>/` (pas de group_vars partagé) :
-
-| Portée | Fichier                        | Contenu                                                  |
-|--------|--------------------------------|----------------------------------------------------------|
-| Site   | `group_vars/<SITE>/main.yml`   | connexion, `mgmt_vlan/mask/gateway`, `uplink_exclude_vlans`, plan de VLANs |
-| Secrets| `group_vars/<SITE>/vault.yml`  | identifiants + mots de passe (chiffré)                   |
-| Switch | `host_vars/<switch>.yml`       | `linkaggs` (+ `mgmt_ip` pour plus tard)                  |
-
-```
-aos8
-└── ROU    : ROU_SW_CDR_01, ROU_SW_ACCESS_01, ROU_SW_ACCESS_02, ROU_SW_ACCESS_03
-```
-
-### Ajouter un site
-
-1. Créer `inventories/<SITE>/hosts.yml` (`aos8 > <SITE> > hosts:`).
-2. Créer `inventories/group_vars/<SITE>/main.yml` (connexion + management + `aos8_vlans`)
-   et `group_vars/<SITE>/vault.yml` (secrets). Repartir du site ROU comme modèle.
-3. Cibler avec `--limit <SITE>`.
+Portée des variables : **site** (`group_vars/<SITE>/`) = connexion, mgmt, VLANs +
+secrets ; **switch** (`host_vars/<switch>.yml`) = `linkaggs`.
 
 ## Vault
 
 ```bash
 cd inventories/group_vars/ROU
-cp vault.example.yml vault.yml          # renseigner les valeurs
-ansible-vault encrypt vault.yml
+cp vault.yml.example vault.yml     # renseigner les valeurs
+ansible-vault encrypt vault.yml    # (ansible-vault edit vault.yml pour modifier)
 ```
 
-Mot de passe fourni au lancement via `--ask-vault-pass`.
+Variables : `vault_aos8_user` / `vault_aos8_password` (connexion SSH),
+`vault_user_admin_password` / `vault_user_adminacs_password` (comptes posés par le playbook).
 
-## Onboarder un switch
+## Lancer sur un switch
 
-1. **Déclarer le switch** dans `inventories/<SITE>/hosts.yml` (nom + `ansible_host`).
-2. **Créer son `host_vars/<switch>.yml`** avec les `linkaggs` (voir
-   `host_vars/ROU_SW_ACCESS_02.yml`). `mgmt_ip` y est déjà prévu pour plus tard.
-3. **Tester puis appliquer**, toujours ciblé sur ce switch :
+1. Déclarer le switch dans `inventories/ROU/hosts.yml` (nom + `ansible_host`).
+2. (Optionnel) `host_vars/<switch>.yml` pour ses `linkaggs`.
+3. Toujours cibler avec `--limit` :
 
 ```bash
-# Simulation : montre les lignes qui seraient appliquées (diff vs running-config)
-ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --check --diff --ask-vault-pass
+# Vérifier la cible + la connexion
+ansible-inventory --host LAB_TEST_01
+ansible LAB_TEST_01 -m ale.aos8.aos8_facts --ask-vault-pass
 
-# Application (n'envoie que ce qui manque ; ne sauvegarde que si ça a changé)
-ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --ask-vault-pass
+# Simulation (diff, rien n'est écrit)
+ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --check --diff --ask-vault-pass
 
-# Avec reload du switch en fin de run (coupe la session)
-ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 -e onboard_reload=true --ask-vault-pass
+# Application
+ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --ask-vault-pass
 ```
 
-> Sur un switch neuf, la connexion se fait avec les identifiants usine
-> (`vault_aos8_user` / `vault_aos8_password`, ex. `admin`/`switch`) ; le playbook
-> positionne ensuite les mots de passe définitifs (`vault_user_*`).
+Un 2ᵉ run affiche `changed=0` (idempotent). Le reload est désactivé par défaut
+(`-e onboard_reload=true` pour rebooter en fin de run).
 
-Vérifier la cible avant exécution :
+## Ce que pousse `onboard.yml`
 
-```bash
-ansible ROU --list-hosts
-ansible-inventory --host ROU_SW_ACCESS_02
-```
+`auto-fabric disable`, `spantree mode flat`, `system name`, `session prompt`,
+`ip service`, `aaa`, `vlan 1` off + `mgmt_vlan` on, nommage des VLANs du site,
+agrégats LACP + membership (trunk = tous les VLANs sauf `uplink_exclude_vlans`),
+comptes `admin` / `admin-acs`.
 
-## Ce que fait `onboard.yml`
+Interface `MGMT` + route par défaut : **différé** (en commentaire dans le template).
 
-Rend `templates/onboard.cfg.j2` depuis les variables et l'applique via
-**`aos8_config`** : la config désirée est comparée au running-config, **seules les
-lignes manquantes sont envoyées** (idempotent). `write memory flash-synchro` +
-`copy running certified` uniquement si des changements ont eu lieu :
+## Ajouter un site
 
-- `auto-fabric disable`, `spantree mode flat`, `system name`, `session prompt`
-- `ip service` (all + ssh), `aaa authentication` (local / http / ssh)
-- `vlan 1` désactivé, `mgmt_vlan` activé
-- création + nommage de tous les VLANs du site (`aos8_vlans`)
-- agrégats LACP (`linkaggs`) + affectation des VLANs (trunk = tous sauf
-  `uplink_exclude_vlans`)
-- comptes locaux `admin-acs` / `admin` (mots de passe depuis le vault)
-- interface `MGMT` + route par défaut : **différé** (lignes en commentaire dans le template)
+Créer `inventories/<SITE>/hosts.yml` + `group_vars/<SITE>/{main.yml,vault.yml}`
+(repartir de ROU), puis cibler `--limit <SITE>`.
 
-> Un 2ᵉ run sur un switch déjà configuré ne renvoie rien (`changed=false`) et ne
-> re-sauvegarde pas. Idéal pour rejouer l'onboarding sans risque.
-
-## Variables clés
-
-`host_vars/<switch>.yml` :
+## host_vars — exemple
 
 ```yaml
-mgmt_ip: 10.2.121.102
 linkaggs:
   - { id: 32, name: ROU-SW-ACCESS-01, ports: [1/1/48, 2/1/48], trunk: true }
-  - { id: 30, name: ROU-SW-ACCESS-03, ports: [1/1/49, 2/1/49], trunk: true }
   - { id: 31, name: NAS-BACKUP,       ports: [1/1/7, 2/1/47], vlans_untagged: [15] }
 ```
 
-`trunk: true` tague tous les VLANs du site sauf `uplink_exclude_vlans`
-(défini dans `group_vars/ROU/main.yml`, défaut `[2, 123]`). Sinon utiliser
-`vlans_tagged` / `vlans_untagged` explicites.
+`trunk: true` = tous les VLANs du site sauf `uplink_exclude_vlans`
+(`group_vars/ROU/main.yml`, défaut `[2, 123]`). Sinon `vlans_tagged` / `vlans_untagged`.
 
 ## AWX
 
-`execution-environment/` : image `ansible-builder` (contenant `ale.aos8`) pour
-l'exécution via AWX.
+`execution-environment/` : image `ansible-builder` (avec `ale.aos8`) pour AWX.
