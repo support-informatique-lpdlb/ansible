@@ -27,7 +27,7 @@ inventories/
   ROU/hosts.yml                  # switchs du site ROU
   group_vars/ROU/main.yml        # connexion + management + plan de VLANs
   group_vars/ROU/vault.yml       # secrets chiffrés (modèle : vault.yml.example)
-  host_vars/<switch>.yml         # agrégats LACP du switch
+  host_vars/<switch>.yml         # overrides config/ config supplémentaire
 playbooks/onboard.yml            # onboarding (aos8_config, idempotent)
 templates/onboard.cfg.j2         # config AOS 8 rendue depuis les variables
 ```
