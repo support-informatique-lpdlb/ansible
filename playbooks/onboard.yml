@@ -1,46 +1,49 @@
 ---
 # Onboarding d'un switch OmniSwitch AOS 8.
-# aos8_config compare la config désirée au running-config et n'applique QUE les
-# lignes manquantes (idempotent). Le running-config est récupéré via aos8_command
-# et passé en running_config : cela contourne le bug get_config d'aos8_config
-# ("'output' value text is not supported for run_commands").
+# Envoie les commandes de config en SSH via aos8_command.
+#
+# Pourquoi PAS aos8_config sur cette collection :
+#  - il applique même en --check (load_config non protégé par check_mode) : DANGEREUX
+#  - son diff ne matche pas le format de "show configuration snapshot" -> réapplique tout
+# aos8_command respecte --check (n'exécute pas les commandes de config) :
+#  - --check = vrai dry-run sûr (montre seulement les commandes)
+#  - un run réel (ré)applique tout ; sur AOS c'est sans danger (les commandes
+#    re-nomment/re-déclarent simplement)
 #
 # TOUJOURS cibler un switch avec --limit :
-#   ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --check --diff --ask-vault-pass
-#   ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --ask-vault-pass
+#   ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --check --ask-vault-pass
+#   ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --ask-vault-pass
 - name: Onboarding switch OmniSwitch AOS 8
   hosts: aos8
   gather_facts: false
   vars:
     onboard_reload: false   # true = reload du switch en fin de run (coupe la session)
   tasks:
-    - name: "Lire le running-config du switch"
-      ale.aos8.aos8_command:
-        commands:
-          - show configuration snapshot
-      register: aos8_running
-      check_mode: false     # lecture seule : à exécuter même en --check
+    - name: "Construire la liste des commandes depuis le template"
+      ansible.builtin.set_fact:
+        onboard_commands: >-
+          {{ lookup('template', playbook_dir ~ '/../templates/onboard.cfg.j2').splitlines()
+             | map('trim') | select() | reject('match', '^!') | list }}
 
-    - name: "Appliquer la configuration d'onboarding (idempotent)"
-      ale.aos8.aos8_config:
-        src: "{{ playbook_dir }}/../templates/onboard.cfg.j2"
-        running_config: "{{ aos8_running.stdout[0] }}"
-      register: onboard_cfg
-
-    - name: "Lignes réellement appliquées (vide si déjà conforme)"
+    - name: "Aperçu des commandes (dry-run, mots de passe masqués)"
       ansible.builtin.debug:
-        var: onboard_cfg.commands
-      when: onboard_cfg.commands | default([]) | length > 0
+        msg: "{{ onboard_commands | map('regex_replace', '(password )\\S+', '\\1***') | list }}"
 
-    - name: "Sauvegarder + certifier (seulement si des changements ont eu lieu)"
+    - name: "Envoyer les commandes d'onboarding en SSH"
+      ale.aos8.aos8_command:
+        commands: "{{ onboard_commands }}"
+      when: not ansible_check_mode
+      no_log: true            # les commandes contiennent des mots de passe
+
+    - name: "Sauvegarder + certifier"
       ale.aos8.aos8_command:
         commands:
           - write memory flash-synchro
           - copy running certified
-      when: onboard_cfg.changed
+      when: not ansible_check_mode
 
     - name: "Recharger le switch (optionnel)"
       ale.aos8.aos8_command:
         commands:
           - reload from working no rollback-timeout
-      when: onboard_reload | bool
+      when: onboard_reload | bool and not ansible_check_mode

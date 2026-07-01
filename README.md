@@ -3,10 +3,14 @@
 Onboarding des switchs Alcatel-Lucent Enterprise OmniSwitch (AOS 8), collection
 `ale.aos8`, connexion SSH (`network_cli`), secrets Ansible Vault, inventaire par site.
 
-Le playbook `onboard.yml` applique la config de base d'un switch de façon
-**idempotente** (`aos8_config` ne pousse que les lignes manquantes) : nom système,
-services IP, AAA, VLANs, agrégats LACP, comptes locaux — puis sauvegarde/certifie
-si quelque chose a changé.
+Le playbook `onboard.yml` envoie la config de base d'un switch en SSH
+(`aos8_command`) : nom système, services IP, AAA, VLANs, agrégats LACP, comptes
+locaux — puis sauvegarde et certifie.
+
+`--check` = **dry-run sûr** : il affiche seulement les commandes, sans rien écrire
+(`aos8_command` n'exécute pas les commandes de config en check mode). Un run réel
+(ré)applique tout ; sur AOS c'est sans danger. `aos8_config` a été écarté : sur
+cette collection il applique même en `--check` et son diff n'est pas fiable.
 
 ## Installation (nœud de contrôle Linux)
 
@@ -18,7 +22,7 @@ ansible-galaxy collection install -r requirements.yml -p collections
 ```
 
 > `ale.aos8` n'est pas sur la Galaxy publique : `requirements.yml` l'installe
-> depuis l'archive GitHub (v1.0.2, requise pour `aos8_config`).
+> depuis l'archive GitHub (v1.0.2, dernière release stable).
 >
 > Auth par mot de passe : `ansible.cfg` force `ssh_type = paramiko`
 > (`look_for_keys = False`) pour ne pas tenter de clé SSH sur les switchs.
@@ -31,7 +35,7 @@ inventories/
   group_vars/ROU/main.yml        # connexion + management + plan de VLANs
   group_vars/ROU/vault.yml       # secrets chiffrés (modèle : vault.yml.example)
   host_vars/<switch>.yml         # overrides config/ config supplémentaire
-playbooks/onboard.yml            # onboarding (aos8_config, idempotent)
+playbooks/onboard.yml            # onboarding (aos8_command ; --check = dry-run sûr)
 templates/onboard.cfg.j2         # config AOS 8 rendue depuis les variables
 ```
 
@@ -60,15 +64,14 @@ Variables : `vault_aos8_user` / `vault_aos8_password` (connexion SSH),
 ansible-inventory --host LAB_TEST_01
 ansible LAB_TEST_01 -m ale.aos8.aos8_facts --ask-vault-pass
 
-# Simulation (diff, rien n'est écrit)
-ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --check --diff --ask-vault-pass
+# Dry-run : affiche les commandes, n'écrit rien
+ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --check --ask-vault-pass
 
 # Application
 ansible-playbook playbooks/onboard.yml --limit LAB_TEST_01 --ask-vault-pass
 ```
 
-Un 2ᵉ run affiche `changed=0` (idempotent). Le reload est désactivé par défaut
-(`-e onboard_reload=true` pour rebooter en fin de run).
+Le reload est désactivé par défaut (`-e onboard_reload=true` pour rebooter en fin de run).
 
 ## Ce que pousse `onboard.yml`
 
