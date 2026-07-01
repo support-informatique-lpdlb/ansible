@@ -13,12 +13,15 @@ si quelque chose a changé.
 ```bash
 sudo apt install -y pipx && pipx ensurepath
 pipx install "ansible-core>=2.14"
-pipx inject ansible-core ansible-pylibssh
+pipx inject ansible-core paramiko
 ansible-galaxy collection install -r requirements.yml -p collections
 ```
 
 > `ale.aos8` n'est pas sur la Galaxy publique : `requirements.yml` l'installe
 > depuis l'archive GitHub (v1.0.2, requise pour `aos8_config`).
+>
+> Auth par mot de passe : `ansible.cfg` force `ssh_type = paramiko`
+> (`look_for_keys = False`) pour ne pas tenter de clé SSH sur les switchs.
 
 ## Structure
 
