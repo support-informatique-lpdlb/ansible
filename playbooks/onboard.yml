@@ -1,8 +1,9 @@
 ---
 # Onboarding d'un switch OmniSwitch AOS 8.
 # aos8_config compare la config désirée au running-config et n'applique QUE les
-# lignes manquantes (idempotent). Sauvegarde + certifie uniquement s'il y a eu
-# des changements.
+# lignes manquantes (idempotent). Le running-config est récupéré via aos8_command
+# et passé en running_config : cela contourne le bug get_config d'aos8_config
+# ("'output' value text is not supported for run_commands").
 #
 # TOUJOURS cibler un switch avec --limit :
 #   ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --check --diff --ask-vault-pass
@@ -13,9 +14,17 @@
   vars:
     onboard_reload: false   # true = reload du switch en fin de run (coupe la session)
   tasks:
+    - name: "Lire le running-config du switch"
+      ale.aos8.aos8_command:
+        commands:
+          - show configuration snapshot
+      register: aos8_running
+      check_mode: false     # lecture seule : à exécuter même en --check
+
     - name: "Appliquer la configuration d'onboarding (idempotent)"
       ale.aos8.aos8_config:
         src: "{{ playbook_dir }}/../templates/onboard.cfg.j2"
+        running_config: "{{ aos8_running.stdout[0] }}"
       register: onboard_cfg
 
     - name: "Lignes réellement appliquées (vide si déjà conforme)"
