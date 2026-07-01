@@ -51,7 +51,8 @@ ansible-vault encrypt vault.yml    # (ansible-vault edit vault.yml pour modifier
 ```
 
 Variables : `vault_aos8_user` / `vault_aos8_password` (connexion SSH),
-`vault_user_admin_password` / `vault_user_adminacs_password` (comptes posés par le playbook).
+`vault_user_admin_password` / `vault_user_adminacs_password` (comptes posés par le
+playbook), `vault_radius_key` (clé partagée RADIUS/ISE).
 
 ## Lancer sur un switch
 
@@ -78,9 +79,11 @@ Le reload est désactivé par défaut (`-e onboard_reload=true` pour rebooter en
 `auto-fabric disable`, `spantree mode flat`, `system name`, `session prompt`,
 `ip service`, `aaa`, `vlan 1` off + `mgmt_vlan` on, nommage des VLANs du site,
 agrégats LACP + membership (trunk = tous les VLANs sauf `uplink_exclude_vlans`),
-comptes `admin` / `admin-acs`.
+**RADIUS/ISE** (serveurs `radius_servers`, profil AAA `802.1x` + accounting, profils
+UNP `unp_profiles` → VLAN, port-template `unp_port_template`), comptes `admin` / `admin-acs`.
 
 Interface `MGMT` + route par défaut : **différé** (en commentaire dans le template).
+Auth admin du switch via ISE : optionnelle (`admin_auth_via_ise: true`).
 
 ## Ajouter un site
 

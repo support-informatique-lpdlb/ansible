@@ -25,9 +25,13 @@
           {{ lookup('template', playbook_dir ~ '/../templates/onboard.cfg.j2').splitlines()
              | map('trim') | select() | reject('match', '^!') | list }}
 
-    - name: "Aperçu des commandes (dry-run, mots de passe masqués)"
+    - name: "Aperçu des commandes (dry-run, secrets masqués)"
       ansible.builtin.debug:
-        msg: "{{ onboard_commands | map('regex_replace', '(password )\\S+', '\\1***') | list }}"
+        msg: >-
+          {{ onboard_commands
+             | map('regex_replace', '(password )\\S+', '\\1***')
+             | map('regex_replace', '(key )\\S+', '\\1***')
+             | list }}
 
     - name: "Envoyer les commandes d'onboarding en SSH"
       ale.aos8.aos8_command:

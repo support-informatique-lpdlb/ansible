@@ -19,3 +19,6 @@ vault_aos8_password: "CHANGEME"
 # --- Comptes locaux positionnés par onboard.yml ---
 vault_user_admin_password:    "CHANGEME"
 vault_user_adminacs_password: "CHANGEME"
+
+# --- Clé partagée RADIUS / ISE (802.1X) ---
+vault_radius_key: "CHANGEME"

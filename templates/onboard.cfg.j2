@@ -50,6 +50,34 @@ vlan {{ vid }} members linkagg {{ agg.id }} untagged
 {% endfor %}
 {% endfor %}
 
+{% if radius_servers | default([]) %}
+{% set ise_names = '"' ~ (radius_servers | map(attribute='name') | join('" "')) ~ '"' %}
+! --- RADIUS / ISE (clé depuis le vault) ---
+{% for r in radius_servers %}
+aaa radius-server "{{ r.name }}" host {{ r.host }} key {{ radius_key }} retransmit {{ radius_retransmit | default(3) }} timeout {{ radius_timeout | default(2) }} auth-port {{ radius_auth_port | default(1812) }} acct-port {{ radius_acct_port | default(1813) }} vrf-name {{ radius_vrf | default('default') }}
+{% endfor %}
+
+! --- Profil AAA {{ aaa_profile | default('ISE') }} (802.1X + accounting) ---
+aaa profile "{{ aaa_profile | default('ISE') }}"
+aaa profile "{{ aaa_profile | default('ISE') }}" device-authentication 802.1x {{ ise_names }}
+aaa profile "{{ aaa_profile | default('ISE') }}" accounting 802.1x {{ ise_names }}
+
+{% if admin_auth_via_ise | default(false) %}
+! --- Authentification admin du switch via ISE ---
+aaa authentication console local
+aaa authentication ssh {{ ise_names }} "local"
+{% endif %}
+! --- Profils UNP -> VLAN (casse exacte = Filter-Id ISE) ---
+{% for u in unp_profiles | default([]) %}
+unp profile "{{ u.name }}"
+unp profile "{{ u.name }}" map vlan {{ u.vlan }}
+{% endfor %}
+
+! --- Port-template UNP (802.1X + profil AAA) ---
+unp port-template "{{ unp_port_template | default('TPLT_ISE') }}" direction both aaa-profile "{{ aaa_profile | default('ISE') }}" classification admin-state enable
+unp port-template "{{ unp_port_template | default('TPLT_ISE') }}" 802.1x-authentication
+{% endif %}
+
 ! --- Comptes locaux (mots de passe depuis le vault) ---
 user admin-acs password {{ vault_user_adminacs_password }} read-write ssh ALL
 user admin password {{ vault_user_admin_password }}

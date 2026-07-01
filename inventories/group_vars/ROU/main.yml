@@ -18,6 +18,27 @@ mgmt_gateway: 10.2.121.1
 # VLANs NON transportés sur les uplinks LACP (2=TELEPHONIE, 123=ANSIBLE)
 uplink_exclude_vlans: [2, 123]
 
+# --- RADIUS / ISE (802.1X) -------------------------------------------------
+# Les deux nœuds ISE sont déclarés sur chaque switch (redondance inter-sites).
+radius_servers:
+  - { name: ROU-ISE-01,  host: 10.2.151.11 }
+  - { name: ESPE-ISE-01, host: 10.9.151.11 }
+radius_key: "{{ vault_radius_key }}"   # clé partagée, depuis le vault
+radius_retransmit: 3
+radius_timeout:    2
+radius_auth_port:  1812
+radius_acct_port:  1813
+radius_vrf:        default
+
+aaa_profile:       ISE          # nom du profil AAA
+admin_auth_via_ise: false       # true = auth admin SSH du switch via ISE (+ local)
+
+# Profils UNP -> VLAN (le nom = Filter-Id renvoyé par ISE, casse exacte)
+unp_profiles:
+  - { name: INFO,     vlan: 40 }
+  - { name: STANDARD, vlan: 70 }
+unp_port_template: TPLT_ISE
+
 # --- Plan de VLANs du site -------------------------------------------------
 aos8_vlans:
   - { vlan_id: 2,   name: TELEPHONIE,         admin_state: enable }
