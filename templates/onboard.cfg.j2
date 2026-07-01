@@ -1,0 +1,55 @@
+! ==========================================================================
+! Onboarding {{ inventory_hostname }} — généré par Ansible (playbooks/onboard.yml)
+! ==========================================================================
+auto-fabric admin-state disable
+spantree mode flat
+
+system name {{ inventory_hostname }}
+session prompt default "{{ inventory_hostname }} ->"
+
+ip service all admin-state enable
+ip service ssh admin-state enable
+
+aaa authentication default local
+aaa authentication http default
+aaa authentication ssh default
+
+! --- Interface de management : à activer plus tard ---
+! ip interface "MGMT" address {{ mgmt_ip | default('<mgmt_ip>') }} mask {{ mgmt_mask }} vlan {{ mgmt_vlan }}
+! ip static-route 0.0.0.0/0 gateway {{ mgmt_gateway | default('<mgmt_gateway>') }} metric 1
+
+vlan 1 admin-state disable
+vlan {{ mgmt_vlan }} admin-state enable
+
+! --- Création / nommage des VLANs (plan du site) ---
+{% for v in aos8_vlans %}
+vlan {{ v.vlan_id }} name {{ v.name }}
+{% endfor %}
+
+! --- Agrégats LACP ---
+{% for agg in linkaggs | default([]) %}
+linkagg lacp agg {{ agg.id }} size {{ agg.ports | length }} name {{ agg.name }} admin-state enable
+linkagg lacp agg {{ agg.id }} actor admin-key {{ agg.admin_key | default(agg.id) }}
+{% for p in agg.ports %}
+linkagg lacp port {{ p }} actor admin-key {{ agg.admin_key | default(agg.id) }} actor admin-state active aggregate
+{% endfor %}
+{% endfor %}
+
+! --- Affectation des VLANs aux agrégats ---
+{% for agg in linkaggs | default([]) %}
+{% if agg.trunk | default(false) %}
+{% for v in aos8_vlans if v.vlan_id not in (uplink_exclude_vlans | default([])) %}
+vlan {{ v.vlan_id }} members linkagg {{ agg.id }} tagged
+{% endfor %}
+{% endif %}
+{% for vid in agg.vlans_tagged | default([]) %}
+vlan {{ vid }} members linkagg {{ agg.id }} tagged
+{% endfor %}
+{% for vid in agg.vlans_untagged | default([]) %}
+vlan {{ vid }} members linkagg {{ agg.id }} untagged
+{% endfor %}
+{% endfor %}
+
+! --- Comptes locaux (mots de passe depuis le vault) ---
+user admin-acs password {{ vault_user_adminacs_password }} read-write ssh ALL
+user admin password {{ vault_user_admin_password }}

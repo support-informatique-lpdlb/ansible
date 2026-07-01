@@ -1,0 +1,15 @@
+---
+exclude_paths:
+  - collections/
+  - backups/
+  - .github/
+
+# Profil de production : durcit progressivement les règles.
+# Passer à "production" quand le dépôt est stabilisé.
+profile: moderate
+
+skip_list:
+  - yaml[line-length]
+
+warn_list:
+  - experimental

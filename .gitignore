@@ -1,0 +1,23 @@
+# Secrets vault : ne jamais committer le mot de passe en clair
+.vault_pass
+*.vault_pass
+
+# Collections installées localement (réinstallées via requirements.yml)
+collections/
+
+# Sauvegardes de configuration générées par le playbook backup
+backups/
+
+# Artefacts Ansible / Python
+*.retry
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Éditeurs / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini

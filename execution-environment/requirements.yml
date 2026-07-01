@@ -1,0 +1,9 @@
+---
+# Collections embarquées dans l'Execution Environment (miroir de la racine).
+collections:
+  - name: ale.aos8
+    version: ">=1.0.0"
+  - name: ansible.netcommon
+    version: ">=5.0.0"
+  - name: ansible.utils
+    version: ">=2.0.0"

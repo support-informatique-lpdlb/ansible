@@ -1,0 +1,18 @@
+---
+# Definition d'Execution Environment (ansible-builder v3) pour AWX / conteneur.
+# Build : ansible-builder build -t ale-aos8-ee:latest -f execution-environment.yml
+#
+# L'image résultante embarque la collection ale.aos8 + les dépendances SSH,
+# et sert de "runner" pour les Job Templates AWX.
+version: 3
+
+images:
+  base_image:
+    name: quay.io/ansible/awx-ee:latest
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+
+  system:
+    - openssh-clients [platform:rpm]

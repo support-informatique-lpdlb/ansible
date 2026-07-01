@@ -1,0 +1,37 @@
+---
+# Onboarding d'un switch OmniSwitch AOS 8.
+# aos8_config compare la config désirée au running-config et n'applique QUE les
+# lignes manquantes (idempotent). Sauvegarde + certifie uniquement s'il y a eu
+# des changements.
+#
+# TOUJOURS cibler un switch avec --limit :
+#   ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --check --diff --ask-vault-pass
+#   ansible-playbook playbooks/onboard.yml --limit ROU_SW_ACCESS_02 --ask-vault-pass
+- name: Onboarding switch OmniSwitch AOS 8
+  hosts: aos8
+  gather_facts: false
+  vars:
+    onboard_reload: false   # true = reload du switch en fin de run (coupe la session)
+  tasks:
+    - name: "Appliquer la configuration d'onboarding (idempotent)"
+      ale.aos8.aos8_config:
+        src: "{{ playbook_dir }}/../templates/onboard.cfg.j2"
+      register: onboard_cfg
+
+    - name: "Lignes réellement appliquées (vide si déjà conforme)"
+      ansible.builtin.debug:
+        var: onboard_cfg.commands
+      when: onboard_cfg.commands | default([]) | length > 0
+
+    - name: "Sauvegarder + certifier (seulement si des changements ont eu lieu)"
+      ale.aos8.aos8_command:
+        commands:
+          - write memory flash-synchro
+          - copy running certified
+      when: onboard_cfg.changed
+
+    - name: "Recharger le switch (optionnel)"
+      ale.aos8.aos8_command:
+        commands:
+          - reload from working no rollback-timeout
+      when: onboard_reload | bool

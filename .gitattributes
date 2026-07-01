@@ -1,0 +1,8 @@
+# Forcer les fins de ligne LF : ces fichiers sont exécutés sous Linux (VM Ubuntu / AWX).
+* text=auto eol=lf
+
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.j2    text eol=lf
+*.cfg   text eol=lf
+*.md    text eol=lf

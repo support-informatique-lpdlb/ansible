@@ -1,0 +1,20 @@
+---
+# ===========================================================================
+# Secrets du site ROU.
+#
+# 1. Copier :   cp vault.example.yml vault.yml
+# 2. Renseigner les vraies valeurs
+# 3. Chiffrer :  ansible-vault encrypt inventories/group_vars/ROU/vault.yml
+#
+# Seul vault.yml (chiffré) est utilisé par Ansible.
+# ===========================================================================
+
+# --- Compte utilisé par Ansible pour se connecter (SSH) ---
+# Switch neuf : admin / switch (défaut usine) ; onboard.yml positionne ensuite
+# les mots de passe définitifs ci-dessous.
+vault_aos8_user: admin
+vault_aos8_password: "CHANGEME"
+
+# --- Comptes locaux positionnés par onboard.yml ---
+vault_user_admin_password:    "CHANGEME"
+vault_user_adminacs_password: "CHANGEME"

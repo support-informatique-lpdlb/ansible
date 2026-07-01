@@ -1,0 +1,65 @@
+---
+# ===========================================================================
+# Site ROU — toutes les variables du site (connexion, management, VLANs)
+# ===========================================================================
+site: ROU
+
+# --- Connexion (network_cli / SSH) ---
+ansible_connection: ansible.netcommon.network_cli
+ansible_network_os: ale.aos8.aos8
+ansible_user:       "{{ vault_aos8_user }}"
+ansible_password:   "{{ vault_aos8_password }}"
+
+# --- Management ---
+mgmt_vlan:    121
+mgmt_mask:    255.255.255.0
+mgmt_gateway: 10.2.121.1
+
+# VLANs NON transportés sur les uplinks LACP (2=TELEPHONIE, 123=ANSIBLE)
+uplink_exclude_vlans: [2, 123]
+
+# --- Plan de VLANs du site -------------------------------------------------
+aos8_vlans:
+  - { vlan_id: 2,   name: TELEPHONIE,         admin_state: enable }
+  - { vlan_id: 3,   name: WAN_FO,             admin_state: enable }
+  - { vlan_id: 4,   name: WAN_FREE,           admin_state: enable }
+  - { vlan_id: 10,  name: SERVEUR,            admin_state: enable }
+  - { vlan_id: 15,  name: SRV_MGMT,           admin_state: enable }
+  - { vlan_id: 20,  name: IMPRIMANTES,        admin_state: enable }
+  - { vlan_id: 30,  name: EQUIPEMENT,         admin_state: enable }
+  - { vlan_id: 31,  name: EQUIPEMENT_WIFI,    admin_state: enable }
+  - { vlan_id: 40,  name: ORDIS_INFOS,        admin_state: enable }
+  - { vlan_id: 41,  name: IT,                 admin_state: enable }
+  - { vlan_id: 42,  name: RHTH,               admin_state: enable }
+  - { vlan_id: 43,  name: QHSE,               admin_state: enable }
+  - { vlan_id: 44,  name: DIRECTION,          admin_state: enable }
+  - { vlan_id: 45,  name: COMPTABILITE,       admin_state: enable }
+  - { vlan_id: 46,  name: COMMERCIAL,         admin_state: enable }
+  - { vlan_id: 50,  name: INVITE,             admin_state: enable }
+  - { vlan_id: 51,  name: GUEST,              admin_state: enable }
+  - { vlan_id: 60,  name: SERVEUR_WEB_GDD,    admin_state: enable }
+  - { vlan_id: 61,  name: SERVEUR_SQL_GESCOM, admin_state: enable }
+  - { vlan_id: 70,  name: ORDIS_STANDARD,     admin_state: enable }
+  - { vlan_id: 80,  name: SURVEILLANCE,       admin_state: enable }
+  - { vlan_id: 97,  name: T2,                 admin_state: enable }
+  - { vlan_id: 98,  name: T1,                 admin_state: enable }
+  - { vlan_id: 99,  name: T0,                 admin_state: enable }
+  - { vlan_id: 120, name: MGMT_SRV,           admin_state: enable }
+  - { vlan_id: 121, name: MGMT_SW,            admin_state: enable }
+  - { vlan_id: 122, name: MGMT_SECU,          admin_state: enable }
+  - { vlan_id: 123, name: ANSIBLE,            admin_state: enable }
+  - { vlan_id: 141, name: SRV_SQL,            admin_state: enable }
+  - { vlan_id: 151, name: SRV_ISE,            admin_state: enable }
+  - { vlan_id: 152, name: SRV_RDS,            admin_state: enable }
+  - { vlan_id: 160, name: SRV_BACKUP,         admin_state: enable }
+  - { vlan_id: 161, name: BACKUP_PROXY,       admin_state: enable }
+  - { vlan_id: 162, name: BACKUP_STORAGE,     admin_state: enable }
+  - { vlan_id: 163, name: BACKUP_CONFIG,      admin_state: enable }
+  - { vlan_id: 170, name: SUPERVISION,        admin_state: enable }
+  - { vlan_id: 171, name: SYSLOG,             admin_state: enable }
+  - { vlan_id: 201, name: SRV_ACTIGEST,       admin_state: enable }
+  - { vlan_id: 202, name: SRV_INTERCONSULT,   admin_state: enable }
+  - { vlan_id: 203, name: SRV_LIGNE1000,      admin_state: enable }
+  - { vlan_id: 250, name: SVC_REF,            admin_state: enable }
+  - { vlan_id: 251, name: DMZ_WEB,            admin_state: enable }
+  - { vlan_id: 252, name: IOT,                admin_state: enable }
